@@ -334,17 +334,19 @@ def _initialize_import_path(import_roots, import_prefix):
     _log('# adding %s to sys.path' % full_roots)
 
 
-def setup(import_roots, zip_safe, extract_dir):
+def setup(import_roots, zip_safe, extract_dir=None):
     """Initialize subpar run-time support
 
     Args:
-      import_root (list): subdirs inside .par file to add to the
-                          module import path at runtime.
-      zip_safe (bool): If False, extract the .par file contents to a
-                       temporary directory, and import everything from
-                       that directory.
+      import_root (list[str]): subdirs inside .par file to add to the
+                               module import path at runtime.
 
-      extract_dir (str): TODO
+      zip_safe (bool): If False, extract the .par file contents to a
+                       directory, and import everything from that directory.
+
+      extract_dir (str): Optionally specify directory in which to extract the
+                         .par file. Ignored when zip_safe=True. Uses a tmp
+                         directory when not specified.
 
     Returns:
       True if setup was successful, else False
@@ -366,7 +368,7 @@ def setup(import_roots, zip_safe, extract_dir):
         extract_only = os.environ.get("UNPAR_EXTRACT_ONLY")
         if extract_only:
             if not extract_dir:
-                sys.exit("no extract_dir specified")
+                sys.exit("UNPAR_EXTRACT_ONLY specified without an extract_dir")
             else:
                 shutil.rmtree(extract_dir, ignore_errors=True)
 
@@ -377,9 +379,9 @@ def setup(import_roots, zip_safe, extract_dir):
 
         if extract_only:
             if extract_dir != original_extract_dir:
-                sys.exit("unable to extract to '%s'" % original_extract_dir)
+                sys.exit("unable to extract to %r" % original_extract_dir)
 
-            sys.stderr.write("successfully unpacked par to %s" % extract_dir)
+            sys.stderr.write("successfully unpacked par to %r" % extract_dir)
             sys.stderr.write("\n")
             sys.exit(0)
 

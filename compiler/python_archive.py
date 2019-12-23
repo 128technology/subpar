@@ -50,9 +50,9 @@ _boilerplate_template = """\
 # Boilerplate added by subpar/compiler/python_archive.py
 from %(runtime_package)s import support as _
 _.setup(
-    import_roots=%(import_roots)s,
+    import_roots=%(import_roots)r,
     zip_safe=%(zip_safe)s,
-    extract_dir="%(extract_dir)s"
+    extract_dir=%(extract_dir)r,
 )
 del _
 # End boilerplate
@@ -177,9 +177,9 @@ class PythonArchive(object):
         """
         boilerplate_contents = _boilerplate_template % {
             'runtime_package': _runtime_package,
-            'import_roots': str(import_roots),
+            'import_roots': import_roots,
             'zip_safe': self.zip_safe,
-            'extract_dir': self.extract_dir.replace('"', '\\"'),
+            'extract_dir': self.extract_dir,
         }
         return boilerplate_contents.encode('ascii').decode('ascii')
 
