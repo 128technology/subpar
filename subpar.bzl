@@ -14,6 +14,8 @@
 
 """Build self-contained python executables."""
 
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+
 DEFAULT_COMPILER = "//compiler:compiler.par"
 
 def _parfile_impl(ctx):
@@ -64,8 +66,7 @@ def _parfile_impl(ctx):
     )
 
     # Find the list of directories to add to sys.path
-    # TODO(b/29227737): Use 'imports' provider from Bazel
-    stub_file = ctx.attr.src.files_to_run.executable.path
+    import_roots = ctx.attr.src[PyInfo].imports.to_list()
 
     # Inputs to the action, but don't actually get stored in the .par file
     extra_inputs = [
@@ -79,14 +80,18 @@ def _parfile_impl(ctx):
     args = ctx.attr.compiler_args + [
         "--manifest_file",
         sources_file.path,
-        "--outputpar",
+        "--output_par",
         ctx.outputs.executable.path,
         "--stub_file",
-        stub_file,
+        ctx.attr.src.files_to_run.executable.path,
         "--zip_safe",
         str(zip_safe),
-        main_py_file.path,
     ]
+    for import_root in import_roots:
+        args.extend(['--import_root', import_root])
+    args.append(main_py_file.path)
+
+    # Run compiler
     ctx.actions.run(
         inputs = inputs + extra_inputs,
         tools = [ctx.attr.src.files_to_run.executable],
@@ -201,13 +206,14 @@ def par_binary(name, **kwargs):
     compiler = kwargs.pop("compiler", None)
     compiler_args = kwargs.pop("compiler_args", [])
     zip_safe = kwargs.pop("zip_safe", True)
-    native.py_binary(name = name, **kwargs)
+    py_binary(name = name, **kwargs)
 
     main = kwargs.get("main", name + ".py")
     imports = kwargs.get("imports")
     default_python_version = kwargs.get("default_python_version", "PY2")
     visibility = kwargs.get("visibility")
     testonly = kwargs.get("testonly", False)
+    tags = kwargs.get("tags", [])
     parfile(
         compiler = compiler,
         compiler_args = compiler_args,
@@ -219,6 +225,7 @@ def par_binary(name, **kwargs):
         testonly = testonly,
         visibility = visibility,
         zip_safe = zip_safe,
+        tags = tags,
     )
 
 def par_test(name, **kwargs):
@@ -229,13 +236,14 @@ def par_test(name, **kwargs):
     """
     compiler = kwargs.pop("compiler", None)
     zip_safe = kwargs.pop("zip_safe", True)
-    native.py_test(name = name, **kwargs)
+    py_test(name = name, **kwargs)
 
     main = kwargs.get("main", name + ".py")
     imports = kwargs.get("imports")
     default_python_version = kwargs.get("default_python_version", "PY2")
     visibility = kwargs.get("visibility")
     testonly = kwargs.get("testonly", True)
+    tags = kwargs.get("tags", [])
     parfile_test(
         compiler = compiler,
         default_python_version = default_python_version,
@@ -246,4 +254,5 @@ def par_test(name, **kwargs):
         testonly = testonly,
         visibility = visibility,
         zip_safe = zip_safe,
+        tags = tags,
     )
