@@ -121,39 +121,43 @@ def _extract_files(archive_path, extract_dir):
         else:
             extract_dir = _make_temporary_extract_dir()
 
-        _log('# extracting %r to %r' % (archive_path, extract_dir))
+        _log('# extracting %r to tmpdir: %r' % (archive_path, extract_dir))
         zip_file.extractall(extract_dir)
 
     return extract_dir
 
 
-def _get_manifest_path(directory=""):
-    return os.path.join(directory, "UNPAR_MANIFEST")
+def _get_manifest_path(directory=''):
+    return os.path.join(directory, 'PAR_MANIFEST')
 
 
 def _extract_to_known_location(archive_path, zip_file, extract_dir):
-    """Extract the contents of this .par to a user specified directory.
+    """
+    Extract the contents of this .par to a user specified directory.
 
     If the par has already been expanded to this same location nothing is done.
-      If the par has changed (or a different par points to the same
-    extract_dir,) the contents will be erased and re-written.
+    If the par has changed (or a different par points to the same extract_dir),
+    the contents will be erased and re-written.
+
+    If the given directory does not exist, it (and all parents) will be created
+    by `zipfile.ZipFile.extractall`
     """
     with contextlib.closing(
-            zip_file.open(_get_manifest_path(), "r")) as manifest:
+            zip_file.open(_get_manifest_path(), 'r')) as manifest:
         manifest_hash = manifest.read().decode()
 
     try:
-        with open(_get_manifest_path(extract_dir), "rb") as found_manifest:
+        with open(_get_manifest_path(extract_dir), 'rb') as found_manifest:
             found_hash = found_manifest.read().decode()
     except FileNotFoundError:
         pass
     else:
         if found_hash == manifest_hash:
-            _log("# existing hash matches, skipping extraction")
+            _log('# existing hash matches, skipping extraction')
             return
 
     shutil.rmtree(extract_dir, ignore_errors=True)
-    _log('# extracting %s to %s' % (archive_path, extract_dir))
+    _log('# extracting %r to %r' % (archive_path, extract_dir))
     zip_file.extractall(extract_dir)
 
 
@@ -365,10 +369,10 @@ def setup(import_roots, zip_safe, extract_dir=None):
 
     # Extract files to disk if necessary
     if not zip_safe:
-        extract_only = os.environ.get("UNPAR_EXTRACT_ONLY")
+        extract_only = os.environ.get('PAR_EXTRACT_ONLY')
         if extract_only:
             if not extract_dir:
-                sys.exit("UNPAR_EXTRACT_ONLY specified without an extract_dir")
+                sys.exit('PAR_EXTRACT_ONLY specified without an extract_dir')
             else:
                 shutil.rmtree(extract_dir, ignore_errors=True)
 
@@ -379,9 +383,9 @@ def setup(import_roots, zip_safe, extract_dir=None):
 
         if extract_only:
             if extract_dir != original_extract_dir:
-                sys.exit("unable to extract to %r" % original_extract_dir)
+                sys.exit('unable to extract to %r' % original_extract_dir)
 
-            sys.stderr.write("successfully unpacked par to %r\n" % extract_dir)
+            sys.stderr.write('successfully unpacked par to %r\n' % extract_dir)
             sys.exit(0)
 
         # sys.path[0] is the name of the executing .par file.  Point
@@ -390,6 +394,11 @@ def setup(import_roots, zip_safe, extract_dir=None):
         sys.path[0] = extract_dir
         import_prefix = extract_dir
     else:  # Import directly from .par file
+        if extract_dir:
+            warnings.warn(
+                'extract_dir has no effect when zip_safe is True, ' +
+                'but was still specified: %r' % extract_dir,
+                UserWarning)
         extract_dir = None
         import_prefix = archive_path
 

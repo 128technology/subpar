@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import io
+import contextlib
 import os
+import shutil
 import sys
 import unittest
 import zipfile
@@ -49,11 +51,17 @@ class SupportTest(unittest.TestCase):
         entry_data = b'print("Hello world")'
         z.writestr(entry_name, entry_data)
 
+        manifest_name = 'PAR_MANIFEST'
+        manifest_contents = b'fake hash'
+        z.writestr(manifest_name, manifest_contents)
+
         z.close()
 
         cls.zipfile_name = zipfile_name
         cls.entry_name = entry_name
         cls.entry_data = entry_data
+        cls.extract_dir = os.path.join(tmpdir,
+                                       '_support_test_sample_extract_dir')
 
         # Create mock loader object
         class MockLoader(object):
@@ -72,6 +80,7 @@ class SupportTest(unittest.TestCase):
     def tearDownClass(cls):
         # Cleanup zipfile
         os.remove(cls.zipfile_name)
+        shutil.rmtree(cls.extract_dir, ignore_errors=True)
 
         # Cleanup loader mock
         main = sys.modules.get('__main__')
@@ -109,7 +118,61 @@ class SupportTest(unittest.TestCase):
         self.assertTrue(os.path.isfile(extracted_file))
         with open(extracted_file, 'rb') as f:
             actual_data = f.read()
-            self.assertEqual(actual_data, self.entry_data)
+        self.assertEqual(actual_data, self.entry_data)
+
+    def test__extract_files_to_dir(self):
+        extract_path = support._extract_files(self.zipfile_name,
+                                              self.extract_dir)
+
+        self.assertEqual(extract_path, self.extract_dir)
+        self.assertTrue(os.path.isdir(extract_path))
+
+        extracted_file = os.path.join(extract_path, self.entry_name)
+        self.assertTrue(os.path.isfile(extracted_file))
+        with open(extracted_file, 'rb') as f:
+            actual_data = f.read()
+        self.assertEqual(actual_data, self.entry_data)
+
+        # Re-run extraction again after modifying a file
+        with open(extracted_file, 'wb') as f:
+            f.write(b'print("Manual file modification!")')
+
+        extract_path = support._extract_files(self.zipfile_name,
+                                              self.extract_dir)
+        self.assertEqual(extract_path, self.extract_dir)
+
+        # Since the archive didn't change, manual changes should still be there
+        with open(extracted_file, 'rb') as f:
+            actual_data = f.read()
+        self.assertEqual(actual_data, b'print("Manual file modification!")')
+
+        # Remove manifest and ensure extraction happens again
+        par_manifest = os.path.join(self.extract_dir, 'PAR_MANIFEST')
+        os.remove(par_manifest)
+
+        extract_path = support._extract_files(self.zipfile_name,
+                                              self.extract_dir)
+        self.assertEqual(extract_path, self.extract_dir)
+
+        with open(extracted_file, 'rb') as f:
+            actual_data = f.read()
+        self.assertEqual(actual_data, self.entry_data)
+
+        # Modify manifest and ensure extraction happens again
+        with open(par_manifest, 'w') as manifest:
+            manifest.write('uh oh, files changed')
+
+        with open(extracted_file, 'wb') as f:
+            f.write(b'print("Manual file modification!")')
+
+        extract_path = support._extract_files(self.zipfile_name,
+                                              self.extract_dir)
+        self.assertEqual(extract_path, self.extract_dir)
+
+        # Manual changes should be overwritten now
+        with open(extracted_file, 'rb') as f:
+            actual_data = f.read()
+        self.assertEqual(actual_data, self.entry_data)
 
     def test__version_check(self):
         class MockModule(object):
@@ -166,6 +229,25 @@ class SupportTest(unittest.TestCase):
             mock_sys_path[0] = self.zipfile_name
             sys.path = mock_sys_path
             success = support.setup(import_roots=['some_root'], zip_safe=False)
+            self.assertTrue(success)
+        finally:
+            sys.path = old_sys_path
+
+        # Check results
+        self.assertNotEqual(mock_sys_path[0], self.zipfile_name)
+        self.assertTrue(
+            os.path.isdir(mock_sys_path[0]),
+            mock_sys_path)
+
+    def test_setup__extract_dir(self):
+        # Run setup() with file extraction
+        old_sys_path = sys.path
+        try:
+            mock_sys_path = list(sys.path)
+            mock_sys_path[0] = self.zipfile_name
+            sys.path = mock_sys_path
+            success = support.setup(import_roots=['some_root'], zip_safe=False,
+                                    extract_dir=self.extract_dir)
             self.assertTrue(success)
         finally:
             sys.path = old_sys_path

@@ -291,14 +291,17 @@ class PythonArchive(object):
             for relative_path, resource in items:
                 assert resource.zipinfo.filename == relative_path
                 resource.store(z)
-                _update_hash(manifest_hash, resource)
+                if self.extract_dir:
+                    _update_hash(manifest_hash, resource)
 
-            logging.debug(
-                "Hash calculated for manifest: %s", manifest_hash.hexdigest())
-            hash_file = stored_resource.StoredContent(
-                "UNPAR_MANIFEST", self.timestamp_tuple,
-                manifest_hash.hexdigest())
-            hash_file.store(z)
+            if self.extract_dir:
+                logging.debug(
+                    'Hash calculated for manifest: %s',
+                    manifest_hash.hexdigest())
+                hash_file = stored_resource.StoredContent(
+                    'PAR_MANIFEST', self.timestamp_tuple,
+                    manifest_hash.hexdigest())
+                hash_file.store(z)
 
     def create_final_from_temp(self, temp_parfile_name):
         """Move newly created parfile to its final filename."""
@@ -309,11 +312,11 @@ class PythonArchive(object):
 
 
 def _update_hash(manifest_hash, resource):
-    local_filename = getattr(resource, "local_filename", None)
+    local_filename = getattr(resource, 'local_filename', None)
     if not local_filename:
         return
 
-    with open(local_filename, "rb") as f:
+    with open(local_filename, 'rb') as f:
         while True:
             chunk = f.read(8192)
             if not chunk:
