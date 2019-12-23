@@ -28,8 +28,8 @@ See also https://www.python.org/dev/peps/pep-0441/
 
 """
 
-from datetime import datetime
 import contextlib
+from datetime import datetime
 import errno
 import hashlib
 import io
@@ -284,7 +284,8 @@ class PythonArchive(object):
         """
 
         logging.debug('Storing Files...')
-        with contextlib.closing(zipfile.ZipFile(temp_parfile, 'w', self.compression)) as z:
+        with contextlib.closing(
+                zipfile.ZipFile(temp_parfile, 'w', self.compression)) as z:
             manifest_hash = hashlib.sha256()
             items = sorted(stored_resources.items())
             for relative_path, resource in items:
@@ -292,7 +293,7 @@ class PythonArchive(object):
                 resource.store(z)
                 _update_hash(manifest_hash, resource)
 
-            logging.info(
+            logging.debug(
                 "Hash calculated for manifest: %s", manifest_hash.hexdigest())
             hash_file = stored_resource.StoredContent(
                 "UNPAR_MANIFEST", self.timestamp_tuple,

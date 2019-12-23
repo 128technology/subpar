@@ -113,7 +113,7 @@ def _extract_files(archive_path, extract_dir):
             except (OSError, IOError):
                 warnings.warn(
                     'Unable to extract to requested directory ' +
-                    '"%s", falling back to tmp dir' % extract_dir,
+                    '%r, falling back to tmp dir' % extract_dir,
                     UserWarning)
                 extract_dir = _make_temporary_extract_dir()
             else:
@@ -121,7 +121,7 @@ def _extract_files(archive_path, extract_dir):
         else:
             extract_dir = _make_temporary_extract_dir()
 
-        _log('# extracting %s to %s' % (archive_path, extract_dir))
+        _log('# extracting %r to %r' % (archive_path, extract_dir))
         zip_file.extractall(extract_dir)
 
     return extract_dir
@@ -381,8 +381,7 @@ def setup(import_roots, zip_safe, extract_dir=None):
             if extract_dir != original_extract_dir:
                 sys.exit("unable to extract to %r" % original_extract_dir)
 
-            sys.stderr.write("successfully unpacked par to %r" % extract_dir)
-            sys.stderr.write("\n")
+            sys.stderr.write("successfully unpacked par to %r\n" % extract_dir)
             sys.exit(0)
 
         # sys.path[0] is the name of the executing .par file.  Point
