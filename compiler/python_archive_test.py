@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -53,6 +55,11 @@ class PythonArchiveTest(unittest.TestCase):
         self.zip_safe = True
         self.extract_dir = None
 
+    def tearDown(self):
+        shutil.rmtree(self.extract_dir, ignore_errors=True)
+        self.main_file.close()
+        self.manifest_file.close()
+
     def _construct(self, manifest_filename=None):
         return python_archive.PythonArchive(
             main_filename=self.main_file.name,
@@ -65,6 +72,10 @@ class PythonArchiveTest(unittest.TestCase):
             zip_safe=self.zip_safe,
             extract_dir=self.extract_dir,
         )
+
+    @property
+    def _extracted_main(self):
+        return os.path.join(self.extract_dir, os.path.basename(self.main_file.name))
 
     def test_create_manifest_not_found(self):
         par = self._construct(
@@ -108,6 +119,55 @@ class PythonArchiveTest(unittest.TestCase):
         with self.assertRaises(OSError):
             par.create()
 
+    def test_extract_dir(self):
+        self.zip_safe = False
+        self.extract_dir = os.path.join(self.tmpdir, 'extract_out')
+        os.makedirs(self.extract_dir)
+
+        par = self._construct()
+        par.create()
+        self.assertTrue(os.path.exists(self.output_filename))
+
+        self.assertEqual(
+            subprocess.check_output([self.output_filename]),
+            b'Hello World!\n')
+
+        self.assertTrue(os.path.exists(self._extracted_main))
+
+    def test_create_extract_dir_fallback_to_tmp(self):
+        self.zip_safe = False
+        self.extract_dir = '/not_allowed'
+
+        par = self._construct()
+        par.create()
+        self.assertTrue(os.path.exists(self.output_filename))
+
+        # Even though extract_dir is non-writable, the payload should still run
+        self.assertEqual(
+            subprocess.check_output([self.output_filename]),
+            b'Hello World!\n')
+
+        self.assertFalse(os.path.exists(self._extracted_main))
+
+    def test_extract_only(self):
+        self.zip_safe = False
+        self.extract_dir = os.path.join(self.tmpdir, 'extract_out')
+
+        par = self._construct()
+        par.create()
+        self.assertTrue(os.path.exists(self.output_filename))
+
+        # The payload's main should not be run
+        self.assertEqual(
+            subprocess.check_output(
+                [self.output_filename],
+                env={
+                    'PAR_EXTRACT_ONLY': '1'
+                }),
+            b'')
+
+        self.assertTrue(os.path.exists(self._extracted_main))
+
     def test_create(self):
         par = self._construct()
         par.create()
@@ -127,9 +187,44 @@ class PythonArchiveTest(unittest.TestCase):
         par2.create()
 
         # The two par files should be bit-for-bit identical
-        content1 = open(par1.output_filename, 'rb').read()
-        content2 = open(par2.output_filename, 'rb').read()
+        with contextlib.closing(open(par1.output_filename, 'rb')) as parfile:
+            content1 = parfile.read()
+
+        with contextlib.closing(open(par2.output_filename, 'rb')) as parfile:
+            content2 = parfile.read()
+
         self.assertEqual(content1, content2)
+
+    def test_create_replace_extract_dir(self):
+        self.zip_safe = False
+        self.extract_dir = os.path.join(self.tmpdir, 'extract_out')
+
+        par1 = self._construct()
+        par1.create()
+
+        # Create a second par with the same extract_dir, but different input
+        self.output_filename = self.output_filename + '2'
+        self.main_file.truncate(0)
+        self.main_file.seek(0)
+        self.main_file.write(b'print("Hello World 2!")')
+        self.main_file.flush()
+
+        par2 = self._construct()
+        par2.create()
+
+        self.assertEqual(
+            subprocess.check_output([par1.output_filename]),
+            b'Hello World!\n')
+
+        with contextlib.closing(open(self._extracted_main, 'r')) as main:
+            self.assertIn('Hello World!', main.read())
+
+        self.assertEqual(
+            subprocess.check_output([par2.output_filename]),
+            b'Hello World 2!\n')
+
+        with contextlib.closing(open(self._extracted_main, 'r')) as main:
+            self.assertIn('Hello World 2!', main.read())
 
     def test_create_temp_parfile(self):
         par = self._construct()

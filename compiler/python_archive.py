@@ -312,11 +312,11 @@ class PythonArchive(object):
 
 
 def _update_hash(manifest_hash, resource):
-    local_filename = getattr(resource, "local_filename", None)
+    local_filename = getattr(resource, 'local_filename', None)
     if not local_filename:
         return
 
-    with open(local_filename, "rb") as f:
+    with open(local_filename, 'rb') as f:
         while True:
             chunk = f.read(8192)
             if not chunk:
