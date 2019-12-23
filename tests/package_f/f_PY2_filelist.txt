@@ -6,3 +6,4 @@ subpar/tests/__init__.py
 subpar/tests/package_f/__init__.py
 subpar/tests/package_f/f
 subpar/tests/package_f/f_PY2.py
+UNPAR_MANIFEST

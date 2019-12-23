@@ -86,9 +86,11 @@ def _parfile_impl(ctx):
         ctx.attr.src.files_to_run.executable.path,
         "--zip_safe",
         str(zip_safe),
+        "--extract_dir",
+        ctx.attr.extract_dir,
     ]
     for import_root in import_roots:
-        args.extend(['--import_root', import_root])
+        args.extend(["--import_root", import_root])
     args.append(main_py_file.path)
 
     # Run compiler
@@ -138,6 +140,7 @@ parfile_attrs = {
     ),
     "compiler_args": attr.string_list(default = []),
     "zip_safe": attr.bool(default = True),
+    "extract_dir": attr.string(),
 }
 
 # Rule to create a parfile given a py_binary() as input
@@ -173,6 +176,10 @@ Args:
             extracted to a temporary directory on disk each time the
             par file executes.
 
+  extract_dir: A file path to extract the archive to if zip_safe is True. The default
+               behavior is to create a temporary directory (and clean it up!) for each
+               invocation.
+
 TODO(b/27502830): A directory foo.par.runfiles is also created. This
 is a bug, don't use or depend on it.
 """
@@ -206,6 +213,7 @@ def par_binary(name, **kwargs):
     compiler = kwargs.pop("compiler", None)
     compiler_args = kwargs.pop("compiler_args", [])
     zip_safe = kwargs.pop("zip_safe", True)
+    extract_dir = kwargs.pop("extract_dir", None)
     py_binary(name = name, **kwargs)
 
     main = kwargs.get("main", name + ".py")
@@ -225,6 +233,7 @@ def par_binary(name, **kwargs):
         testonly = testonly,
         visibility = visibility,
         zip_safe = zip_safe,
+        extract_dir = extract_dir,
         tags = tags,
     )
 
@@ -236,6 +245,7 @@ def par_test(name, **kwargs):
     """
     compiler = kwargs.pop("compiler", None)
     zip_safe = kwargs.pop("zip_safe", True)
+    extract_dir = kwargs.pop("extract_dir", None)
     py_test(name = name, **kwargs)
 
     main = kwargs.get("main", name + ".py")
@@ -254,5 +264,6 @@ def par_test(name, **kwargs):
         testonly = testonly,
         visibility = visibility,
         zip_safe = zip_safe,
+        extract_dir = extract_dir,
         tags = tags,
     )

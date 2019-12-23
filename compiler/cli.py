@@ -88,6 +88,10 @@ def make_command_line_parser():
         type=bool_from_string,
         required=True)
     parser.add_argument(
+        '--extract_dir',
+        help='Set an explicit extraction output directory.  This is only ' +
+        'used if zip_safe is True.')
+    parser.add_argument(
         '--import_root',
         help='Path to add to sys.path, may be repeated to provide multiple roots.',
         action='append',
@@ -170,5 +174,6 @@ def main(argv):
         manifest_root=args.manifest_root,
         timestamp=args.timestamp,
         zip_safe=args.zip_safe,
+        extract_dir=args.extract_dir,
     )
     par.create()

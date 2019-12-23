@@ -7,3 +7,4 @@ subpar/tests/package_a/__init__.py
 subpar/tests/package_a/a
 subpar/tests/package_a/a.py
 subpar/tests/package_a/a_dat.txt
+UNPAR_MANIFEST

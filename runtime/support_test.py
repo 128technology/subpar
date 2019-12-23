@@ -101,7 +101,7 @@ class SupportTest(unittest.TestCase):
 
     def test__extract_files(self):
         # Extract zipfile
-        extract_path = support._extract_files(self.zipfile_name)
+        extract_path = support._extract_files(self.zipfile_name, None)
 
         # Check results
         self.assertTrue(os.path.isdir(extract_path))
