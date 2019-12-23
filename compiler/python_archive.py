@@ -31,6 +31,7 @@ See also https://www.python.org/dev/peps/pep-0441/
 from datetime import datetime
 import contextlib
 import errno
+import hashlib
 import io
 import logging
 import os
@@ -48,7 +49,11 @@ from subpar.compiler import stored_resource
 _boilerplate_template = """\
 # Boilerplate added by subpar/compiler/python_archive.py
 from %(runtime_package)s import support as _
-_.setup(import_roots=%(import_roots)s, zip_safe=%(zip_safe)s)
+_.setup(
+    import_roots=%(import_roots)s,
+    zip_safe=%(zip_safe)s,
+    extract_dir="%(extract_dir)s"
+)
 del _
 # End boilerplate
 """
@@ -102,6 +107,7 @@ class PythonArchive(object):
                  output_filename,
                  timestamp,
                  zip_safe,
+                 extract_dir,
                  ):
         self.main_filename = main_filename
 
@@ -114,6 +120,7 @@ class PythonArchive(object):
         t = datetime.utcfromtimestamp(timestamp)
         self.timestamp_tuple = t.timetuple()[0:6]
         self.zip_safe = zip_safe
+        self.extract_dir = extract_dir
 
         self.compression = zipfile.ZIP_DEFLATED
 
@@ -172,6 +179,7 @@ class PythonArchive(object):
             'runtime_package': _runtime_package,
             'import_roots': str(import_roots),
             'zip_safe': self.zip_safe,
+            'extract_dir': self.extract_dir.replace('"', '\\"'),
         }
         return boilerplate_contents.encode('ascii').decode('ascii')
 
@@ -277,10 +285,19 @@ class PythonArchive(object):
 
         logging.debug('Storing Files...')
         with contextlib.closing(zipfile.ZipFile(temp_parfile, 'w', self.compression)) as z:
+            manifest_hash = hashlib.sha256()
             items = sorted(stored_resources.items())
             for relative_path, resource in items:
                 assert resource.zipinfo.filename == relative_path
                 resource.store(z)
+                _update_hash(manifest_hash, resource)
+
+            logging.info(
+                "Hash calculated for manifest: %s", manifest_hash.hexdigest())
+            hash_file = stored_resource.StoredContent(
+                "UNPAR_MANIFEST", self.timestamp_tuple,
+                manifest_hash.hexdigest())
+            hash_file.store(z)
 
     def create_final_from_temp(self, temp_parfile_name):
         """Move newly created parfile to its final filename."""
@@ -288,6 +305,19 @@ class PythonArchive(object):
         # not atomic in all cases.
         os.chmod(temp_parfile_name, 0o0755)
         os.rename(temp_parfile_name, self.output_filename)
+
+
+def _update_hash(manifest_hash, resource):
+    local_filename = getattr(resource, "local_filename", None)
+    if not local_filename:
+        return
+
+    with open(local_filename, "rb") as f:
+        while True:
+            chunk = f.read(8192)
+            if not chunk:
+                return
+            manifest_hash.update(chunk)
 
 
 def remove_if_present(filename):

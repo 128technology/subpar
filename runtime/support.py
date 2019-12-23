@@ -53,6 +53,7 @@ so use something else.  For example:
 """
 
 import atexit
+import contextlib
 import os
 import pkgutil
 import shutil
@@ -95,26 +96,77 @@ def _find_archive():
     return archive_path
 
 
-def _extract_files(archive_path):
+def _extract_files(archive_path, extract_dir):
     """Extract the contents of this .par file to disk.
 
-    This creates a temporary directory, and registers an atexit
-    handler to clean that directory on program exit.  Extraction and
-    cleanup will potentially use significant time and disk space.
+    Extraction and cleanup will potentially use significant time and disk space.
 
     Returns:
         Directory where contents were extracted to.
+    """
+    with contextlib.closing(
+            zipfile.ZipFile(archive_path, mode='r')) as zip_file:
+        if extract_dir:
+            try:
+                _extract_to_known_location(
+                    archive_path, zip_file, extract_dir)
+            except (OSError, IOError):
+                warnings.warn(
+                    'Unable to extract to requested directory ' +
+                    '"%s", falling back to tmp dir' % extract_dir,
+                    UserWarning)
+                extract_dir = _make_temporary_extract_dir()
+            else:
+                return extract_dir
+        else:
+            extract_dir = _make_temporary_extract_dir()
+
+        _log('# extracting %s to %s' % (archive_path, extract_dir))
+        zip_file.extractall(extract_dir)
+
+    return extract_dir
+
+
+def _get_manifest_path(directory=""):
+    return os.path.join(directory, "UNPAR_MANIFEST")
+
+
+def _extract_to_known_location(archive_path, zip_file, extract_dir):
+    """Extract the contents of this .par to a user specified directory.
+
+    If the par has already been expanded to this same location nothing is done.
+      If the par has changed (or a different par points to the same
+    extract_dir,) the contents will be erased and re-written.
+    """
+    with contextlib.closing(
+            zip_file.open(_get_manifest_path(), "r")) as manifest:
+        manifest_hash = manifest.read().decode()
+
+    try:
+        with open(_get_manifest_path(extract_dir), "rb") as found_manifest:
+            found_hash = found_manifest.read().decode()
+    except FileNotFoundError:
+        pass
+    else:
+        if found_hash == manifest_hash:
+            _log("# existing hash matches, skipping extraction")
+            return
+
+    shutil.rmtree(extract_dir, ignore_errors=True)
+    _log('# extracting %s to %s' % (archive_path, extract_dir))
+    zip_file.extractall(extract_dir)
+
+
+def _make_temporary_extract_dir():
+    """This creates a temporary directory, and registers an atexit
+    handler to clean that directory on program exit.
+
     """
     extract_dir = tempfile.mkdtemp()
 
     def _extract_files_cleanup():
         shutil.rmtree(extract_dir, ignore_errors=True)
     atexit.register(_extract_files_cleanup)
-    _log('# extracting %s to %s' % (archive_path, extract_dir))
-
-    zip_file = zipfile.ZipFile(archive_path, mode='r')
-    zip_file.extractall(extract_dir)
-    zip_file.close()
 
     return extract_dir
 
@@ -282,7 +334,7 @@ def _initialize_import_path(import_roots, import_prefix):
     _log('# adding %s to sys.path' % full_roots)
 
 
-def setup(import_roots, zip_safe):
+def setup(import_roots, zip_safe, extract_dir):
     """Initialize subpar run-time support
 
     Args:
@@ -291,6 +343,8 @@ def setup(import_roots, zip_safe):
       zip_safe (bool): If False, extract the .par file contents to a
                        temporary directory, and import everything from
                        that directory.
+
+      extract_dir (str): TODO
 
     Returns:
       True if setup was successful, else False
@@ -309,7 +363,26 @@ def setup(import_roots, zip_safe):
 
     # Extract files to disk if necessary
     if not zip_safe:
-        extract_dir = _extract_files(archive_path)
+        extract_only = os.environ.get("UNPAR_EXTRACT_ONLY")
+        if extract_only:
+            if not extract_dir:
+                sys.exit("no extract_dir specified")
+            else:
+                shutil.rmtree(extract_dir, ignore_errors=True)
+
+            extract_dir = os.path.expanduser(extract_dir)
+            original_extract_dir = extract_dir
+
+        extract_dir = _extract_files(archive_path, extract_dir)
+
+        if extract_only:
+            if extract_dir != original_extract_dir:
+                sys.exit("unable to extract to '%s'" % original_extract_dir)
+
+            sys.stderr.write("successfully unpacked par to %s" % extract_dir)
+            sys.stderr.write("\n")
+            sys.exit(0)
+
         # sys.path[0] is the name of the executing .par file.  Point
         # it to the extract directory instead, so that Python searches
         # there for imports.
