@@ -118,7 +118,7 @@ class SupportTest(unittest.TestCase):
         self.assertTrue(os.path.isfile(extracted_file))
         with open(extracted_file, 'rb') as f:
             actual_data = f.read()
-            self.assertEqual(actual_data, self.entry_data)
+        self.assertEqual(actual_data, self.entry_data)
 
     def test__extract_files_to_dir(self):
         extract_path = support._extract_files(self.zipfile_name,
@@ -131,16 +131,20 @@ class SupportTest(unittest.TestCase):
         self.assertTrue(os.path.isfile(extracted_file))
         with open(extracted_file, 'rb') as f:
             actual_data = f.read()
-            self.assertEqual(actual_data, self.entry_data)
+        self.assertEqual(actual_data, self.entry_data)
 
-        # Re-run extraction, ensuring no files are modified (idempotency)
-        entry_mtime = os.path.getmtime(extracted_file)
+        # Re-run extraction again after modifying a file
+        with open(extracted_file, 'wb') as f:
+            f.write(b'print("Manual file modification!")')
 
         extract_path = support._extract_files(self.zipfile_name,
                                               self.extract_dir)
         self.assertEqual(extract_path, self.extract_dir)
 
-        self.assertEqual(entry_mtime, os.path.getmtime(extracted_file))
+        # Since the archive didn't change, manual changes should still be there
+        with open(extracted_file, 'rb') as f:
+            actual_data = f.read()
+        self.assertEqual(actual_data, b'print("Manual file modification!")')
 
         # Remove manifest and ensure extraction happens again
         par_manifest = os.path.join(self.extract_dir, 'PAR_MANIFEST')
@@ -150,17 +154,25 @@ class SupportTest(unittest.TestCase):
                                               self.extract_dir)
         self.assertEqual(extract_path, self.extract_dir)
 
-        self.assertLess(entry_mtime, os.path.getmtime(extracted_file))
+        with open(extracted_file, 'rb') as f:
+            actual_data = f.read()
+        self.assertEqual(actual_data, self.entry_data)
 
         # Modify manifest and ensure extraction happens again
         with open(par_manifest, 'w') as manifest:
             manifest.write('uh oh, files changed')
 
+        with open(extracted_file, 'wb') as f:
+            f.write(b'print("Manual file modification!")')
+
         extract_path = support._extract_files(self.zipfile_name,
                                               self.extract_dir)
         self.assertEqual(extract_path, self.extract_dir)
 
-        self.assertLess(entry_mtime, os.path.getmtime(extracted_file))
+        # Manual changes should be overwritten now
+        with open(extracted_file, 'rb') as f:
+            actual_data = f.read()
+        self.assertEqual(actual_data, self.entry_data)
 
     def test__version_check(self):
         class MockModule(object):
