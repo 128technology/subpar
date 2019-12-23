@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import io
+import contextlib
 import os
 import shutil
 import sys
@@ -51,7 +52,7 @@ class SupportTest(unittest.TestCase):
         z.writestr(entry_name, entry_data)
 
         manifest_name = 'PAR_MANIFEST'
-        manifest_contents = 'dummy hash'
+        manifest_contents = b'fake hash'
         z.writestr(manifest_name, manifest_contents)
 
         z.close()
@@ -133,24 +134,32 @@ class SupportTest(unittest.TestCase):
             self.assertEqual(actual_data, self.entry_data)
 
         # Re-run extraction, ensuring no files are modified (idempotency)
-        dir_mtime = os.path.getmtime(extract_path)
         entry_mtime = os.path.getmtime(extracted_file)
 
         extract_path = support._extract_files(self.zipfile_name,
                                               self.extract_dir)
         self.assertEqual(extract_path, self.extract_dir)
 
-        self.assertEqual(dir_mtime, os.path.getmtime(extract_path))
         self.assertEqual(entry_mtime, os.path.getmtime(extracted_file))
 
-        # Remove manifest and ensure extraction happens again (files modified)
-        os.remove(os.path.join(self.extract_dir, 'PAR_MANIFEST'))
+        # Remove manifest and ensure extraction happens again
+        par_manifest = os.path.join(self.extract_dir, 'PAR_MANIFEST')
+        os.remove(par_manifest)
 
         extract_path = support._extract_files(self.zipfile_name,
                                               self.extract_dir)
         self.assertEqual(extract_path, self.extract_dir)
 
-        self.assertLess(dir_mtime, os.path.getmtime(extract_path))
+        self.assertLess(entry_mtime, os.path.getmtime(extracted_file))
+
+        # Modify manifest and ensure extraction happens again
+        with open(par_manifest, 'w') as manifest:
+            manifest.write('uh oh, files changed')
+
+        extract_path = support._extract_files(self.zipfile_name,
+                                              self.extract_dir)
+        self.assertEqual(extract_path, self.extract_dir)
+
         self.assertLess(entry_mtime, os.path.getmtime(extracted_file))
 
     def test__version_check(self):

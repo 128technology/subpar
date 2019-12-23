@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import contextlib
 import os
 import shutil
 import subprocess
@@ -188,10 +187,10 @@ class PythonArchiveTest(unittest.TestCase):
         par2.create()
 
         # The two par files should be bit-for-bit identical
-        with contextlib.closing(open(par1.output_filename, 'rb')) as parfile:
+        with open(par1.output_filename, 'rb') as parfile:
             content1 = parfile.read()
 
-        with contextlib.closing(open(par2.output_filename, 'rb')) as parfile:
+        with open(par2.output_filename, 'rb') as parfile:
             content2 = parfile.read()
 
         self.assertEqual(content1, content2)
@@ -217,14 +216,14 @@ class PythonArchiveTest(unittest.TestCase):
             subprocess.check_output([par1.output_filename]),
             b'Hello World!\n')
 
-        with contextlib.closing(open(self._extracted_main, 'r')) as main:
+        with open(self._extracted_main, 'r') as main:
             self.assertIn('Hello World!', main.read())
 
         self.assertEqual(
             subprocess.check_output([par2.output_filename]),
             b'Hello World 2!\n')
 
-        with contextlib.closing(open(self._extracted_main, 'r')) as main:
+        with open(self._extracted_main, 'r') as main:
             self.assertIn('Hello World 2!', main.read())
 
     def test_create_temp_parfile(self):
