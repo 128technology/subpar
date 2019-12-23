@@ -6,4 +6,3 @@ subpar/tests/__init__.py
 subpar/tests/package_boilerplate/__init__.py
 subpar/tests/package_boilerplate/main
 subpar/tests/package_boilerplate/main.py
-UNPAR_MANIFEST

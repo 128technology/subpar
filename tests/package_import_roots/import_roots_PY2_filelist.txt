@@ -6,4 +6,3 @@ subpar/tests/__init__.py
 subpar/tests/package_import_roots/__init__.py
 subpar/tests/package_import_roots/import_roots
 subpar/tests/package_import_roots/import_roots.py
-UNPAR_MANIFEST
