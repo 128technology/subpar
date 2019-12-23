@@ -59,7 +59,8 @@ class SupportTest(unittest.TestCase):
         cls.zipfile_name = zipfile_name
         cls.entry_name = entry_name
         cls.entry_data = entry_data
-        cls.extract_dir = os.path.join(tmpdir, '_support_test_sample_extract_dir')
+        cls.extract_dir = os.path.join(tmpdir,
+                                       '_support_test_sample_extract_dir')
 
         # Create mock loader object
         class MockLoader(object):

@@ -75,7 +75,8 @@ class PythonArchiveTest(unittest.TestCase):
 
     @property
     def _extracted_main(self):
-        return os.path.join(self.extract_dir, os.path.basename(self.main_file.name))
+        return os.path.join(self.extract_dir,
+                            os.path.basename(self.main_file.name))
 
     def test_create_manifest_not_found(self):
         par = self._construct(

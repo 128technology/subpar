@@ -395,7 +395,8 @@ def setup(import_roots, zip_safe, extract_dir=None):
         import_prefix = extract_dir
     else:  # Import directly from .par file
         if extract_dir:
-            warnings.warn('extract_dir has no effect when zip_safe is True, ' +
+            warnings.warn(
+                'extract_dir has no effect when zip_safe is True, ' +
                 'but was still specified: %r' % extract_dir,
                 UserWarning)
         extract_dir = None
