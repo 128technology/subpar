@@ -19,3 +19,4 @@ subpar/tests/package_c/c.py
 subpar/tests/package_d/__init__.py
 subpar/tests/package_d/d
 subpar/tests/package_d/d.py
+UNPAR_MANIFEST

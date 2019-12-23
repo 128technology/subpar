@@ -13,3 +13,4 @@ subpar/tests/package_b/__init__.py
 subpar/tests/package_b/b
 subpar/tests/package_b/b.py
 subpar/tests/package_b/b_dat.txt
+UNPAR_MANIFEST
