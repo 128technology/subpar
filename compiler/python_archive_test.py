@@ -168,6 +168,32 @@ class PythonArchiveTest(unittest.TestCase):
 
         self.assertTrue(os.path.exists(self._extracted_main))
 
+    def test_extract_only_root_specified(self):
+        self.zip_safe = False
+        self.extract_dir = '/extract_out'
+
+        par = self._construct()
+        par.create()
+        self.assertTrue(os.path.exists(self.output_filename))
+
+        # The payload's main should not be run, and the subpar should be extracted
+        # under the specified root instead of the top-level /extract_out
+        self.assertEqual(
+            subprocess.check_output(
+                [self.output_filename],
+                env={
+                    'PAR_EXTRACT_ONLY': '1',
+                    'PAR_EXTRACT_ROOT': self.tmpdir,
+                }),
+            b'')
+
+        expected_extracted_main = os.path.join(
+            self.tmpdir,
+            'extract_out',
+            os.path.basename(self.main_file.name)
+        )
+        self.assertTrue(os.path.exists(expected_extracted_main))
+
     def test_create(self):
         par = self._construct()
         par.create()

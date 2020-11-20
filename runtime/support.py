@@ -376,7 +376,10 @@ def setup(import_roots, zip_safe, extract_dir=None):
             else:
                 shutil.rmtree(extract_dir, ignore_errors=True)
 
-            extract_dir = os.path.expanduser(extract_dir)
+            # Turn extract_dir into a relative path to join with the extraction root
+            extract_dir = os.path.expanduser(extract_dir).lstrip('/')
+            extraction_root = os.environ.get('PAR_EXTRACT_ROOT', '/')
+            extract_dir = os.path.join(extraction_root, extract_dir)
             original_extract_dir = extract_dir
 
         extract_dir = _extract_files(archive_path, extract_dir)
