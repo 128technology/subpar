@@ -135,6 +135,10 @@ class PythonArchiveTest(unittest.TestCase):
         self.assertTrue(os.path.exists(self._extracted_main))
 
     def test_create_extract_dir_fallback_to_tmp(self):
+        # Root can do anything, so this test doesn't work
+        if os.geteuid() ==0:
+            return
+
         self.zip_safe = False
         self.extract_dir = '/not_allowed'
 
